@@ -115,8 +115,10 @@ impl MoleculeStore {
             return;
         }
 
+        log::info!("minimizing blob");
+
         let minimized_blob = minimize_blob(data, forcefield);
-        for result in minimized_blob {
+        for (i, result) in minimized_blob.into_iter().enumerate() {
             let inchi_key = result.inchi_key;
             let molecule_id =
                 self.get_molecule_id_by_inchi_key(&inchi_key).unwrap();
@@ -128,6 +130,8 @@ impl MoleculeStore {
                 coordinates: result.coordinates,
                 energy: result.energy,
             });
+
+            log::info!("completed record {i}");
         }
     }
 
