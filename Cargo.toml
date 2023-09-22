@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 openff-toolkit = { version = "0.1.0", path = "../../omsf/rust/openff-toolkit" }
+ligand = { path = "../../omsf/rust/ligand" }
