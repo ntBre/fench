@@ -8,7 +8,7 @@ mod bench;
 
 // this is main.py from my benchmarking repo. the goal to emulate
 fn main() {
-    let forcefield = "testfiles/sage-2.1.0.offxml";
+    let forcefield = "openff-2.1.0.offxml";
 
     let opt = ResultCollection::parse_file("testfiles/core-opt.json").unwrap();
 
@@ -17,7 +17,7 @@ fn main() {
 
     // I'm not doing the DB stuff for now. we're doing it live. jokes aside, I
     // don't actually use the DB after a run anyway
-    let store = MoleculeStore::from(opt);
+    let mut store = MoleculeStore::from(opt);
 
     store.optimize_mm(forcefield);
 
