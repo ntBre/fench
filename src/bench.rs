@@ -137,7 +137,7 @@ struct MinimizationInput {
 }
 
 impl MinimizationInput {
-    fn run_openmm(self) -> MinimizationResult {
+    fn run_openmm(self) -> anyhow::Result<MinimizationResult> {
         let MinimizationInput {
             inchi_key,
             qcarchive_id,
@@ -145,24 +145,24 @@ impl MinimizationInput {
             mapped_smiles,
             coordinates,
         } = self;
-        let molecule = Molecule::from_mapped_smiles(&mapped_smiles).unwrap();
-        let forcefield = ForceField::new(&force_field).unwrap();
+        let molecule = Molecule::from_mapped_smiles(&mapped_smiles)?;
+        let forcefield = ForceField::new(&force_field)?;
         let system = forcefield
-            .create_interchange(molecule.to_topology())
+            .create_interchange(molecule.to_topology())?
             .to_openmm();
         let mut context =
             Context::new(system, Integrator::Verlet(0.1), Platform::Reference);
         context.set_positions(coordinates);
         context.minimize(5e-9, 1500);
 
-        MinimizationResult {
+        Ok(MinimizationResult {
             inchi_key,
             qcarchive_id,
             force_field,
             mapped_smiles,
             coordinates: context.get_coordinates(),
             energy: context.get_energy(),
-        }
+        })
     }
 }
 
@@ -193,10 +193,16 @@ fn minimize_blob(
             },
         )
     });
+    let mut outputs = Vec::new();
+    let mut failed = 0;
     for input in inputs {
-        input.run_openmm();
+        match input.run_openmm() {
+            Ok(v) => outputs.push(v),
+            Err(_) => failed += 1,
+        }
     }
-    todo!()
+    eprintln!("{failed} minimizations failed, {} succeeded", outputs.len());
+    outputs
 }
 
 impl From<ResultCollection> for MoleculeStore {
