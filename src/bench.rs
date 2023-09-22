@@ -11,6 +11,8 @@ use ligand::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::utils::make_rel;
+
 #[allow(unused)]
 #[derive(Clone, Deserialize, Serialize)]
 struct QMConformerRecord {
@@ -109,8 +111,39 @@ impl MoleculeStore {
         }
     }
 
-    pub fn get_dde(&self, _forcefield: &str) {
-        todo!()
+    pub fn get_dde(&self, _forcefield: &str) -> Vec<(String, f64)> {
+        let mut ret = Vec::new();
+        for inchi_key in self.get_inchi_keys() {
+            let molecule_id =
+                self.get_molecule_id_by_inchi_key(&inchi_key).unwrap();
+            let qcarchive_ids =
+                self.get_qcarchive_ids_by_molecule_id(molecule_id);
+            dbg!(&qcarchive_ids);
+            if qcarchive_ids.len() == 1 {
+                // only one conformer, so you can't compute ΔΔE
+                continue;
+            }
+            let mut qm_energies =
+                self.get_qm_energies_by_molecule_id(molecule_id);
+            make_rel(&mut qm_energies);
+
+            let mut mm_energies =
+                self.get_mm_energies_by_molecule_id(molecule_id);
+            if mm_energies.len() != qm_energies.len() {
+                continue;
+            }
+            make_rel(&mut mm_energies);
+
+            // already check that mm == qm above
+            assert_eq!(qcarchive_ids.len(), mm_energies.len());
+
+            for i in 0..qcarchive_ids.len() {
+                let mm = mm_energies[i];
+                let qm = qm_energies[i];
+                ret.push((qcarchive_ids[i].clone(), mm - qm));
+            }
+        }
+        ret
     }
 
     pub fn get_rmsd(&self, _forcefield: &str) {
@@ -137,6 +170,27 @@ impl MoleculeStore {
     pub fn to_json(&self, path: impl AsRef<Path>) {
         std::fs::write(path, serde_json::to_string_pretty(self).unwrap())
             .unwrap()
+    }
+
+    fn get_qcarchive_ids_by_molecule_id(&self, id: usize) -> Vec<String> {
+        self.qcarchive_records
+            .iter()
+            .filter_map(|rec| {
+                if rec.molecule_id == id {
+                    Some(rec.qcarchive_id.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn get_qm_energies_by_molecule_id(&self, _molecule_id: usize) -> Vec<f64> {
+        todo!()
+    }
+
+    fn get_mm_energies_by_molecule_id(&self, _molecule_id: usize) -> Vec<f64> {
+        todo!()
     }
 }
 

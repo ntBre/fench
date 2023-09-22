@@ -9,4 +9,6 @@ store = MoleculeStore.from_qcsubmit_collection(
     database_name=f"{data}.sqlite",
 )
 
-store.optimize_mm("openff-2.1.0")
+ff = "openff-2.1.0"
+store.optimize_mm(ff)
+print(len(store.get_dde(ff)))
