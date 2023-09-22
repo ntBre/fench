@@ -48,14 +48,18 @@ impl From<Molecule> for MoleculeRecord {
 }
 
 #[derive(Deserialize, Serialize)]
-pub(crate) struct MoleculeStore {
+pub struct MoleculeStore {
     qcarchive_records: Vec<QMConformerRecord>,
     molecule_records: Vec<MoleculeRecord>,
     mm_conformers: Vec<MMConformerRecord>,
 }
 
 impl MoleculeStore {
-    pub(crate) fn optimize_mm(&mut self, forcefield: &str) {
+    pub fn from_json(path: impl AsRef<Path>) -> anyhow::Result<Self> {
+        Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
+    }
+
+    pub fn optimize_mm(&mut self, forcefield: &str) {
         let inchi_keys = self.get_inchi_keys();
         let mut data = HashMap::new();
 
@@ -105,15 +109,15 @@ impl MoleculeStore {
         }
     }
 
-    pub(crate) fn get_dde(&self, _forcefield: &str) {
+    pub fn get_dde(&self, _forcefield: &str) {
         todo!()
     }
 
-    pub(crate) fn get_rmsd(&self, _forcefield: &str) {
+    pub fn get_rmsd(&self, _forcefield: &str) {
         todo!()
     }
 
-    pub(crate) fn get_tfd(&self, _forcefield: &str) {
+    pub fn get_tfd(&self, _forcefield: &str) {
         todo!()
     }
 
