@@ -2,7 +2,9 @@
 
 use std::{collections::HashMap, path::Path};
 
-use openff_toolkit::qcsubmit::results::ResultCollection;
+use openff_toolkit::{
+    qcportal::models::Record, qcsubmit::results::ResultCollection,
+};
 
 use ligand::{
     forcefield::ForceField,
@@ -21,6 +23,24 @@ struct QMConformerRecord {
     mapped_smiles: String,
     energy: f64,
     coordinates: Vec<f64>,
+}
+
+impl QMConformerRecord {
+    fn from_qcarchive_record(
+        molecule_id: usize,
+        mapped_smiles: String,
+        qc_record: Record,
+        coordinates: Vec<f64>,
+    ) -> Self {
+        const HARTREE2KCALMOL: f64 = 627.5095;
+        Self {
+            molecule_id,
+            mapped_smiles,
+            energy: qc_record.get_final_energy() * HARTREE2KCALMOL,
+            qcarchive_id: qc_record.id,
+            coordinates,
+        }
+    }
 }
 
 #[allow(unused)]
@@ -49,7 +69,7 @@ impl From<Molecule> for MoleculeRecord {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct MoleculeStore {
     qcarchive_records: Vec<QMConformerRecord>,
     molecule_records: Vec<MoleculeRecord>,
@@ -118,7 +138,6 @@ impl MoleculeStore {
                 self.get_molecule_id_by_inchi_key(&inchi_key).unwrap();
             let qcarchive_ids =
                 self.get_qcarchive_ids_by_molecule_id(molecule_id);
-            dbg!(&qcarchive_ids);
             if qcarchive_ids.len() == 1 {
                 // only one conformer, so you can't compute ΔΔE
                 continue;
@@ -191,6 +210,30 @@ impl MoleculeStore {
 
     fn get_mm_energies_by_molecule_id(&self, _molecule_id: usize) -> Vec<f64> {
         todo!()
+    }
+
+    fn store(&mut self, molecule_record: MoleculeRecord) {
+        self.molecule_records.push(molecule_record);
+    }
+
+    fn get_molecule_id_by_smiles(&self, mapped_smiles: String) -> usize {
+        self.molecule_records
+            .iter()
+            .position(|rec| rec.mapped_smiles == mapped_smiles)
+            .unwrap()
+    }
+
+    fn store_qcarchive(&mut self, record: QMConformerRecord) {
+        if !self.qm_conformer_already_exists(&record.qcarchive_id) {
+            self.qcarchive_records.push(record);
+        }
+    }
+
+    fn qm_conformer_already_exists(&self, qcarchive_id: &str) -> bool {
+        self.qcarchive_records
+            .iter()
+            .find(|rec| rec.qcarchive_id == qcarchive_id)
+            .is_some()
     }
 }
 
@@ -273,29 +316,27 @@ fn minimize_blob(
 
 impl From<ResultCollection> for MoleculeStore {
     fn from(collection: ResultCollection) -> Self {
-        let mut molecule_records = Vec::new();
-        let mut qcarchive_records = Vec::new();
+        // let mut molecule_records = Vec::new();
+        // let mut qcarchive_records = Vec::new();
+        let mut store = Self::default();
+        // the parent_ids are supposed to come from collection itself. inside of
+        // to_records, and optimization_records, which it calls,
+        // collection.into::<CollectionGetResponse>().ids() contains the
+        // parent_id values returned by get_qcarchive_ids_by_molecule_id
         for (qcarchive_record, molecule) in collection.to_records() {
             let molecule_record = MoleculeRecord::from(molecule.clone());
             let mapped_smiles = molecule_record.mapped_smiles.clone();
-            molecule_records.push(molecule_record);
-            // ibstore has some complicated way of retrieving this from the
-            // database, but I'll just call the position in the vector its "id"
-            let molecule_id = molecule_records.len() - 1;
+            let smiles = molecule_record.mapped_smiles.clone();
+            store.store(molecule_record);
+            let molecule_id = store.get_molecule_id_by_smiles(smiles);
             // from qcelemental/checkup_data/physconst.py
-            const HARTREE2KCALMOL: f64 = 627.5095;
-            qcarchive_records.push(QMConformerRecord {
-                qcarchive_id: qcarchive_record.id.clone(),
+            store.store_qcarchive(QMConformerRecord::from_qcarchive_record(
                 molecule_id,
                 mapped_smiles,
-                energy: qcarchive_record.get_final_energy() * HARTREE2KCALMOL,
-                coordinates: molecule.get_conformer(0),
-            });
+                qcarchive_record,
+                molecule.get_conformer(0),
+            ));
         }
-        Self {
-            qcarchive_records,
-            molecule_records,
-            mm_conformers: Vec::new(),
-        }
+        store
     }
 }
