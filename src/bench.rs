@@ -210,15 +210,36 @@ impl MoleculeStore {
     }
 
     fn get_qm_energies_by_molecule_id(&self, _molecule_id: usize) -> Vec<f64> {
-        todo!()
+        self.qcarchive_records
+            .iter()
+            .flat_map(|rec| {
+                if rec.molecule_id == _molecule_id {
+                    Some(rec.energy)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     fn get_mm_energies_by_molecule_id(&self, _molecule_id: usize) -> Vec<f64> {
-        todo!()
+        self.mm_conformers
+            .iter()
+            .flat_map(|rec| {
+                if rec.molecule_id == _molecule_id {
+                    Some(rec.energy)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
-    fn store(&mut self, molecule_record: MoleculeRecord) {
-        self.molecule_records.push(molecule_record);
+    fn store(&mut self, record: MoleculeRecord) {
+        if self.smiles_already_exists(&record.mapped_smiles) {
+            return;
+        }
+        self.molecule_records.push(record);
     }
 
     fn get_molecule_id_by_smiles(&self, mapped_smiles: String) -> usize {
@@ -234,11 +255,18 @@ impl MoleculeStore {
         }
     }
 
+    /// true if we already have a QCArchive record with this ID
     fn qm_conformer_already_exists(&self, qcarchive_id: &str) -> bool {
         self.qcarchive_records
             .iter()
-            .find(|rec| rec.qcarchive_id == qcarchive_id)
-            .is_some()
+            .any(|rec| rec.qcarchive_id == qcarchive_id)
+    }
+
+    /// true if we already have a molecule with this SMILES string
+    fn smiles_already_exists(&self, mapped_smiles: &str) -> bool {
+        self.molecule_records
+            .iter()
+            .any(|rec| rec.mapped_smiles == mapped_smiles)
     }
 }
 
