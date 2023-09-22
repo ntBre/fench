@@ -2,8 +2,9 @@
 
 use openff_toolkit::{
     qcportal::models::Record, qcsubmit::results::ResultCollection,
-    topology::molecule::Molecule,
 };
+
+use ligand::molecule::Molecule;
 
 #[allow(unused)]
 struct QMConformerRecord {
@@ -20,7 +21,7 @@ struct MoleculeRecord {
 impl From<Molecule> for MoleculeRecord {
     fn from(value: Molecule) -> Self {
         Self {
-            mapped_smiles: value.smiles,
+            mapped_smiles: value.to_mapped_smiles(),
         }
     }
 }
@@ -57,7 +58,7 @@ impl From<ResultCollection> for MoleculeStore {
                 molecule_id,
                 mapped_smiles: molecule_record.mapped_smiles.clone(),
                 qc_record: qcarchive_record,
-                coordinates: molecule.conformers[0].clone(),
+                coordinates: molecule.get_conformer(0),
             });
 
             molecule_records.push(molecule_record);
