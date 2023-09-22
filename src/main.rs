@@ -21,6 +21,8 @@ fn main() {
 
     store.optimize_mm(forcefield);
 
+    store.to_json("store.json");
+
     store.get_dde(forcefield);
     store.get_rmsd(forcefield);
     store.get_tfd(forcefield);

@@ -1,6 +1,6 @@
 //! benchmarking force fields
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use openff_toolkit::qcsubmit::results::ResultCollection;
 
@@ -9,9 +9,10 @@ use ligand::{
     molecule::Molecule,
     openmm::{Context, Integrator, Platform},
 };
+use serde::{Deserialize, Serialize};
 
 #[allow(unused)]
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 struct QMConformerRecord {
     qcarchive_id: String,
     molecule_id: usize,
@@ -21,7 +22,7 @@ struct QMConformerRecord {
 }
 
 #[allow(unused)]
-#[derive(Default)]
+#[derive(Default, Deserialize, Serialize)]
 struct MMConformerRecord {
     molecule_id: usize,
     qcarchive_id: String,
@@ -31,6 +32,7 @@ struct MMConformerRecord {
     energy: f64,
 }
 
+#[derive(Deserialize, Serialize)]
 struct MoleculeRecord {
     mapped_smiles: String,
     inchi_key: String,
@@ -45,6 +47,7 @@ impl From<Molecule> for MoleculeRecord {
     }
 }
 
+#[derive(Deserialize, Serialize)]
 pub(crate) struct MoleculeStore {
     qcarchive_records: Vec<QMConformerRecord>,
     molecule_records: Vec<MoleculeRecord>,
@@ -125,6 +128,11 @@ impl MoleculeStore {
         self.molecule_records
             .iter()
             .position(|m| m.inchi_key == inchi_key)
+    }
+
+    pub fn to_json(&self, path: impl AsRef<Path>) {
+        std::fs::write(path, serde_json::to_string_pretty(self).unwrap())
+            .unwrap()
     }
 }
 
