@@ -118,7 +118,10 @@ impl MoleculeStore {
         log::info!("minimizing blob");
 
         let minimized_blob = minimize_blob(data, forcefield);
-        for (i, result) in minimized_blob.into_iter().enumerate() {
+
+        log::info!("finished minimizing blob");
+
+        for result in minimized_blob.into_iter() {
             let inchi_key = result.inchi_key;
             let molecule_id =
                 self.get_molecule_id_by_inchi_key(&inchi_key).unwrap();
@@ -130,8 +133,6 @@ impl MoleculeStore {
                 coordinates: result.coordinates,
                 energy: result.energy,
             });
-
-            log::info!("completed record {i}");
         }
     }
 
@@ -308,11 +309,12 @@ fn minimize_blob(
     });
     let mut outputs = Vec::new();
     let mut failed = 0;
-    for input in inputs {
+    for (i, input) in inputs.enumerate() {
         match input.run_openmm() {
             Ok(v) => outputs.push(v),
             Err(_) => failed += 1,
         }
+        log::info!("finished input {i}");
     }
     eprintln!("{failed} minimizations failed, {} succeeded", outputs.len());
     outputs
