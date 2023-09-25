@@ -2,6 +2,7 @@
 
 use std::{collections::HashMap, path::Path};
 
+use log::{debug, info};
 use openff_toolkit::{
     qcportal::models::Record, qcsubmit::results::ResultCollection,
 };
@@ -64,7 +65,7 @@ impl From<Molecule> for MoleculeRecord {
     fn from(value: Molecule) -> Self {
         Self {
             mapped_smiles: value.to_mapped_smiles(),
-            inchi_key: value.to_inchikey(),
+            inchi_key: value.to_inchi(),
         }
     }
 }
@@ -115,11 +116,11 @@ impl MoleculeStore {
             return;
         }
 
-        log::info!("minimizing blob");
+        info!("minimizing blob");
 
         let minimized_blob = minimize_blob(data, forcefield);
 
-        log::info!("finished minimizing blob");
+        info!("finished minimizing blob");
 
         for result in minimized_blob.into_iter() {
             let inchi_key = result.inchi_key;
@@ -138,13 +139,19 @@ impl MoleculeStore {
 
     pub fn get_dde(&self, _forcefield: &str) -> Vec<(String, f64)> {
         let mut ret = Vec::new();
-        for inchi_key in self.get_inchi_keys() {
+        let inchi_keys = self.get_inchi_keys();
+
+        debug!("found {} inchi keys", inchi_keys.len());
+
+        for inchi_key in inchi_keys {
             let molecule_id =
                 self.get_molecule_id_by_inchi_key(&inchi_key).unwrap();
+
             let qcarchive_ids =
                 self.get_qcarchive_ids_by_molecule_id(molecule_id);
             if qcarchive_ids.len() == 1 {
                 // only one conformer, so you can't compute ΔΔE
+                debug!("skipping {inchi_key}");
                 continue;
             }
             let mut qm_energies =
@@ -161,7 +168,9 @@ impl MoleculeStore {
             // already check that mm == qm above
             assert_eq!(qcarchive_ids.len(), mm_energies.len());
 
-            for i in 0..qcarchive_ids.len() {
+            let ids = qcarchive_ids.len();
+
+            for i in 0..ids {
                 let mm = mm_energies[i];
                 let qm = qm_energies[i];
                 ret.push((qcarchive_ids[i].clone(), mm - qm));
@@ -323,14 +332,22 @@ fn minimize_blob(
 ) -> Vec<MinimizationResult> {
     // define it in this weird way so that we can parallelize later
     let inputs = data.into_iter().flat_map(|(inchi_key, rows)| {
-        rows.into_iter().map(
+        rows.into_iter().filter_map(
             move |(qcarchive_id, mapped_smiles, coordinates)| {
-                MinimizationInput {
-                    inchi_key: inchi_key.clone(),
-                    qcarchive_id,
-                    force_field: forcefield.to_owned(),
-                    mapped_smiles,
-                    coordinates,
+                let is_isomorphic =
+                    Molecule::from_inchi(&inchi_key).unwrap().is_isomorphic(
+                        Molecule::from_mapped_smiles(&mapped_smiles).unwrap(),
+                    );
+                if is_isomorphic {
+                    Some(MinimizationInput {
+                        inchi_key: inchi_key.clone(),
+                        qcarchive_id,
+                        force_field: forcefield.to_owned(),
+                        mapped_smiles,
+                        coordinates,
+                    })
+                } else {
+                    None
                 }
             },
         )
@@ -342,7 +359,7 @@ fn minimize_blob(
             Ok(v) => outputs.push(v),
             Err(_) => failed += 1,
         }
-        log::info!("finished input {i}");
+        info!("finished input {i}");
     }
     eprintln!("{failed} minimizations failed, {} succeeded", outputs.len());
     outputs
