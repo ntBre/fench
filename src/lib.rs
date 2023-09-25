@@ -32,11 +32,10 @@ mod tests {
         want
     }
 
-    fn check(got: Vec<(String, f64)>, want: Vec<(String, f64)>) {
+    fn check(got: Vec<(String, f64)>, want: Vec<(String, f64)>, eps: f64) {
         let (gr, gv): (Vec<_>, Vec<_>) = got.into_iter().unzip();
         let (wr, wv): (Vec<_>, Vec<_>) = want.into_iter().unzip();
         assert_eq!(gr, wr);
-        let eps = 0.63;
         let mut disagree = 0;
         for (i, (g, w)) in gv.iter().zip(wv.iter()).enumerate() {
             if (g - w).abs() > eps {
@@ -57,7 +56,7 @@ mod tests {
         let got = store.get_dde(ff);
         let want = load_pairs("testfiles/dde.txt");
         assert_eq!(got.len(), want.len());
-        check(got, want);
+        check(got, want, 0.63);
     }
 
     #[test]
@@ -67,6 +66,6 @@ mod tests {
         let got = store.get_rmsd(ff);
         let want = load_pairs("testfiles/rmsd.txt");
         assert_eq!(got.len(), want.len());
-        check(got, want);
+        check(got, want, 0.1);
     }
 }
