@@ -32,13 +32,7 @@ mod tests {
         want
     }
 
-    #[test]
-    fn get_dde() {
-        let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
-        let ff = "openff-2.1.0.offxml";
-        let got = store.get_dde(ff);
-        let want = load_pairs("testfiles/dde.txt");
-        assert_eq!(got.len(), want.len());
+    fn check(got: Vec<(String, f64)>, want: Vec<(String, f64)>) {
         let (gr, gv): (Vec<_>, Vec<_>) = got.into_iter().unzip();
         let (wr, wv): (Vec<_>, Vec<_>) = want.into_iter().unzip();
         assert_eq!(gr, wr);
@@ -57,11 +51,22 @@ mod tests {
     }
 
     #[test]
+    fn get_dde() {
+        let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
+        let ff = "openff-2.1.0.offxml";
+        let got = store.get_dde(ff);
+        let want = load_pairs("testfiles/dde.txt");
+        assert_eq!(got.len(), want.len());
+        check(got, want);
+    }
+
+    #[test]
     fn get_rmsd() {
         let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
         let ff = "openff-2.1.0.offxml";
         let got = store.get_rmsd(ff);
         let want = load_pairs("testfiles/rmsd.txt");
         assert_eq!(got.len(), want.len());
+        check(got, want);
     }
 }
