@@ -19,12 +19,9 @@ mod tests {
 
     use crate::bench::MoleculeStore;
 
-    #[test]
-    fn get_dde() {
-        let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
-        let ff = "openff-2.1.0.offxml";
-        let got = store.get_dde(ff);
-        let s = read_to_string("testfiles/dde.txt").unwrap();
+    /// load (String, f64) pairs from filename
+    fn load_pairs(filename: &'static str) -> Vec<(String, f64)> {
+        let s = read_to_string(filename).unwrap();
         let want: Vec<_> = s
             .lines()
             .map(|line| {
@@ -32,6 +29,15 @@ mod tests {
                 (fields[0].to_owned(), fields[1].parse::<f64>().unwrap())
             })
             .collect();
+        want
+    }
+
+    #[test]
+    fn get_dde() {
+        let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
+        let ff = "openff-2.1.0.offxml";
+        let got = store.get_dde(ff);
+        let want = load_pairs("testfiles/dde.txt");
         assert_eq!(got.len(), want.len());
         let (gr, gv): (Vec<_>, Vec<_>) = got.into_iter().unzip();
         let (wr, wv): (Vec<_>, Vec<_>) = want.into_iter().unzip();
@@ -48,5 +54,14 @@ mod tests {
             println!("{} / {} disagree", disagree, gv.len());
         }
         assert_abs_diff_eq!(gv.as_slice(), wv.as_slice(), epsilon = eps);
+    }
+
+    #[test]
+    fn get_rmsd() {
+        let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
+        let ff = "openff-2.1.0.offxml";
+        let got = store.get_rmsd(ff);
+        let want = load_pairs("testfiles/rmsd.txt");
+        assert_eq!(got.len(), want.len());
     }
 }

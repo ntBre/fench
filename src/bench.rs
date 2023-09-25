@@ -180,8 +180,32 @@ impl MoleculeStore {
         ret
     }
 
-    pub fn get_rmsd(&self, _forcefield: &str) {
-        todo!()
+    pub fn get_rmsd(&self, _forcefield: &str) -> Vec<(String, f64)> {
+        let inchi_keys = self.get_inchi_keys();
+        debug!("found {} inchi keys", inchi_keys.len());
+
+        let mut ret = Vec::new();
+        for inchi_key in inchi_keys {
+            let molecule = Molecule::from_inchi(&inchi_key).unwrap();
+            let molecule_id =
+                self.get_molecule_id_by_inchi_key(&inchi_key).unwrap();
+            let qcarchive_ids =
+                self.get_qcarchive_ids_by_molecule_id(molecule_id);
+            let qm_conformers =
+                self.get_qm_conformers_by_molecule_id(molecule_id);
+            let mm_conformers =
+                self.get_mm_conformers_by_molecule_id(molecule_id);
+
+            for (i, (mm, qm)) in mm_conformers
+                .into_iter()
+                .zip(qm_conformers.into_iter())
+                .enumerate()
+            {
+                let rmsd = molecule.get_rmsd(qm, mm);
+                ret.push((qcarchive_ids[i].clone(), rmsd));
+            }
+        }
+        ret
     }
 
     pub fn get_tfd(&self, _forcefield: &str) {
@@ -277,6 +301,38 @@ impl MoleculeStore {
         self.molecule_records
             .iter()
             .any(|rec| rec.mapped_smiles == mapped_smiles)
+    }
+
+    fn get_qm_conformers_by_molecule_id(
+        &self,
+        molecule_id: usize,
+    ) -> Vec<Vec<f64>> {
+        self.qcarchive_records
+            .iter()
+            .filter_map(|rec| {
+                if rec.molecule_id == molecule_id {
+                    Some(rec.coordinates.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn get_mm_conformers_by_molecule_id(
+        &self,
+        molecule_id: usize,
+    ) -> Vec<Vec<f64>> {
+        self.mm_conformers
+            .iter()
+            .filter_map(|rec| {
+                if rec.molecule_id == molecule_id {
+                    Some(rec.coordinates.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }
 
