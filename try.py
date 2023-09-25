@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 
 from ibstore._store import MoleculeStore
 from openff.qcsubmit.results import OptimizationResultCollection
@@ -19,4 +19,8 @@ store = MoleculeStore.from_qcsubmit_collection(
 
 ff = "openff-2.1.0"
 store.optimize_mm(ff)
-print(len(store.get_dde(ff)))
+dde = store.get_dde(ff)
+
+with open("testfiles/dde.txt", "w") as out:
+    for d in sorted(dde, key=lambda x: x.qcarchive_id):
+        out.write(f"{d.qcarchive_id} {d.difference}\n")
