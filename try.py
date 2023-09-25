@@ -20,7 +20,12 @@ store = MoleculeStore.from_qcsubmit_collection(
 ff = "openff-2.1.0"
 store.optimize_mm(ff)
 dde = store.get_dde(ff)
+rmsd = store.get_rmsd(ff)
 
 with open("testfiles/dde.txt", "w") as out:
     for d in sorted(dde, key=lambda x: x.qcarchive_id):
         out.write(f"{d.qcarchive_id} {d.difference}\n")
+
+with open("testfiles/rmsd.txt", "w") as out:
+    for d in sorted(rmsd, key=lambda x: x.qcarchive_id):
+        out.write(f"{d.qcarchive_id} {d.rmsd}\n")
