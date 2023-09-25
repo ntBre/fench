@@ -1,7 +1,10 @@
 import os
+import logging
 
 from ibstore._store import MoleculeStore
 from openff.qcsubmit.results import OptimizationResultCollection
+
+logging.getLogger("openff").setLevel(logging.ERROR)
 
 db_name = "try.sqlite"
 if os.path.exists(db_name):
