@@ -173,6 +173,7 @@ impl MoleculeStore {
             for i in 0..ids {
                 let mm = mm_energies[i];
                 let qm = qm_energies[i];
+                debug!("{} {} {}", qcarchive_ids[i], mm, qm);
                 ret.push((qcarchive_ids[i].clone(), mm - qm));
             }
         }
