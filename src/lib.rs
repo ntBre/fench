@@ -68,4 +68,14 @@ mod tests {
         assert_eq!(got.len(), want.len());
         check(got, want, 0.1);
     }
+
+    #[test]
+    fn get_tfd() {
+        let store = MoleculeStore::from_json("testfiles/store.json").unwrap();
+        let ff = "openff-2.1.0.offxml";
+        let got = store.get_tfd(ff);
+        let want = load_pairs("testfiles/tfd.txt");
+        assert_eq!(got.len(), want.len());
+        check(got, want, 0.48);
+    }
 }

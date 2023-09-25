@@ -181,6 +181,17 @@ impl MoleculeStore {
     }
 
     pub fn get_rmsd(&self, _forcefield: &str) -> Vec<(String, f64)> {
+        self.get_geom_metric(|mol, qm, mm| Ok(mol.get_rmsd(qm, mm)))
+    }
+
+    pub fn get_tfd(&self, _forcefield: &str) -> Vec<(String, f64)> {
+        self.get_geom_metric(Molecule::get_tfd)
+    }
+
+    fn get_geom_metric(
+        &self,
+        fun: impl Fn(&Molecule, Vec<f64>, Vec<f64>) -> anyhow::Result<f64>,
+    ) -> Vec<(String, f64)> {
         let inchi_keys = self.get_inchi_keys();
         debug!("found {} inchi keys", inchi_keys.len());
 
@@ -201,15 +212,15 @@ impl MoleculeStore {
                 .zip(qm_conformers.into_iter())
                 .enumerate()
             {
-                let rmsd = molecule.get_rmsd(qm, mm);
-                ret.push((qcarchive_ids[i].clone(), rmsd));
+                let rmsd = fun(&molecule, qm, mm);
+                if let Ok(val) = rmsd {
+                    ret.push((qcarchive_ids[i].clone(), val));
+                } else {
+                    debug!("failed to get metric for {inchi_key}");
+                }
             }
         }
         ret
-    }
-
-    pub fn get_tfd(&self, _forcefield: &str) {
-        todo!()
     }
 
     fn get_inchi_keys(&self) -> Vec<String> {
