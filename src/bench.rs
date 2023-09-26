@@ -33,6 +33,7 @@ impl QMConformerRecord {
         qc_record: Record,
         coordinates: Vec<f64>,
     ) -> Self {
+        // from qcelemental/checkup_data/physconst.py
         const HARTREE2KCALMOL: f64 = 627.5095;
         Self {
             molecule_id,
@@ -75,6 +76,26 @@ pub struct MoleculeStore {
     qcarchive_records: Vec<QMConformerRecord>,
     molecule_records: Vec<MoleculeRecord>,
     mm_conformers: Vec<MMConformerRecord>,
+}
+
+impl From<ResultCollection> for MoleculeStore {
+    fn from(collection: ResultCollection) -> Self {
+        let mut store = Self::default();
+        for (qcarchive_record, molecule) in collection.to_records() {
+            let molecule_record = MoleculeRecord::from(molecule.clone());
+            let mapped_smiles = molecule_record.mapped_smiles.clone();
+            let smiles = molecule_record.mapped_smiles.clone();
+            store.store(molecule_record);
+            let molecule_id = store.get_molecule_id_by_smiles(smiles);
+            store.store_qcarchive(QMConformerRecord::from_qcarchive_record(
+                molecule_id,
+                mapped_smiles,
+                qcarchive_record,
+                molecule.get_conformer(0),
+            ));
+        }
+        store
+    }
 }
 
 impl MoleculeStore {
@@ -188,6 +209,9 @@ impl MoleculeStore {
         self.get_geom_metric(Molecule::get_tfd)
     }
 
+    /// helper method for computing metrics associated with the geometry like
+    /// RMSD and TFD. `fun` computes the metric of interest between two
+    /// geometries, and all of the entries returning Ok(f64) are aggregated
     fn get_geom_metric(
         &self,
         fun: impl Fn(&Molecule, Vec<f64>, Vec<f64>) -> anyhow::Result<f64>,
@@ -431,31 +455,4 @@ fn minimize_blob(
     }
     eprintln!("{failed} minimizations failed, {} succeeded", outputs.len());
     outputs
-}
-
-impl From<ResultCollection> for MoleculeStore {
-    fn from(collection: ResultCollection) -> Self {
-        // let mut molecule_records = Vec::new();
-        // let mut qcarchive_records = Vec::new();
-        let mut store = Self::default();
-        // the parent_ids are supposed to come from collection itself. inside of
-        // to_records, and optimization_records, which it calls,
-        // collection.into::<CollectionGetResponse>().ids() contains the
-        // parent_id values returned by get_qcarchive_ids_by_molecule_id
-        for (qcarchive_record, molecule) in collection.to_records() {
-            let molecule_record = MoleculeRecord::from(molecule.clone());
-            let mapped_smiles = molecule_record.mapped_smiles.clone();
-            let smiles = molecule_record.mapped_smiles.clone();
-            store.store(molecule_record);
-            let molecule_id = store.get_molecule_id_by_smiles(smiles);
-            // from qcelemental/checkup_data/physconst.py
-            store.store_qcarchive(QMConformerRecord::from_qcarchive_record(
-                molecule_id,
-                mapped_smiles,
-                qcarchive_record,
-                molecule.get_conformer(0),
-            ));
-        }
-        store
-    }
 }

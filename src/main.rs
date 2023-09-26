@@ -13,8 +13,6 @@ fn main() {
     let opt = ResultCollection::parse_file("testfiles/filtered-core-opt.json")
         .unwrap();
 
-    // I'm not doing the DB stuff for now. we're doing it live. jokes aside, I
-    // don't actually use the DB after a run anyway
     let mut store = MoleculeStore::from(opt);
 
     log::info!("finished initializing store");
