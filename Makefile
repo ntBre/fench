@@ -4,5 +4,11 @@ run:
 clippy:
 	cargo clippy
 
+testflags = -- --nocapture
+
+ifdef ARGS
+    testflags += --test-threads=1
+endif
+
 test:
-	cargo test -- --nocapture --test-threads=1 $(ARGS)
+	cargo test $(testflags) $(ARGS)
