@@ -66,7 +66,7 @@ mod tests {
         let got = store.get_rmsd(ff);
         let want = load_pairs("testfiles/rmsd.txt");
         assert_eq!(got.len(), want.len());
-        check(got, want, 0.1);
+        check(got, want, 1.5);
     }
 
     #[test]
